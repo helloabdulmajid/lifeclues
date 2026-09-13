@@ -63,7 +63,7 @@ public class AuthController {
     }
 
     @PostMapping("/verify-email")
-    public MessageResponse verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
+    public AuthResponse verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
         return authService.verifyEmail(request);
     }
 
