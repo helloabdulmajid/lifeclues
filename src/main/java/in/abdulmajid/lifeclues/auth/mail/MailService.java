@@ -35,6 +35,7 @@ public class MailService {
 
     public boolean sendVerificationLink(HttpServletRequest request, String to, String rawToken) {
         String link = baseUrl(request) + "/verify-email?token=" + rawToken;
+        log.debug("Verification link for {}: {}", to, link);
         String body = """
                 <p>Hello,</p>
                 <p>Welcome to LifeClues! Confirm that this email address is yours so you can start
@@ -49,6 +50,7 @@ public class MailService {
 
     public boolean sendResetLink(HttpServletRequest request, String to, String rawToken) {
         String link = baseUrl(request) + "/reset-password?token=" + rawToken;
+        log.debug("Reset link for {}: {}", to, link);
         String body = """
                 <p>Hello,</p>
                 <p>Someone asked to reset the password for your LifeClues account. If that was you,
@@ -97,14 +99,20 @@ public class MailService {
         if (configuredBaseUrl != null && !configuredBaseUrl.isBlank()) {
             return configuredBaseUrl.replaceFirst("/+$", "");
         }
+        // Standard reverse proxies (nginx, etc.) forward these headers; trust them when present.
+        String forwardedHost = request.getHeader("X-Forwarded-Host");
         String forwardedProto = request.getHeader("X-Forwarded-Proto");
-        boolean secure = (forwardedProto != null && forwardedProto.trim().equalsIgnoreCase("https"))
-                || request.isSecure()
-                || "https".equals(request.getScheme());
+        if (forwardedHost != null && !forwardedHost.isBlank()
+                && forwardedProto != null && !forwardedProto.isBlank()) {
+            return (forwardedProto.trim().startsWith("https") ? "https" : "http")
+                    + "://" + forwardedHost.trim();
+        }
         String host = request.getHeader("Host");
         if (host == null || host.isBlank()) {
             host = "localhost:5173";
         }
+        // localhost = plain http; any other (public) hostname is served over HTTPS.
+        boolean secure = !(host.startsWith("localhost") || host.startsWith("127.0.0.1"));
         return (secure ? "https" : "http") + "://" + host;
     }
 }
