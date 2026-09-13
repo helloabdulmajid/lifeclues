@@ -113,14 +113,14 @@ public class AuthService {
     }
 
     @Transactional
-    public MessageResponse verifyEmail(VerifyEmailRequest request) {
+    public AuthResponse verifyEmail(VerifyEmailRequest request) {
         AuthToken token = findValidToken(request.token(), TYPE_VERIFY, "This verification link is invalid or has expired.");
         token.setUsedAt(Instant.now());
         User user = token.getUser();
         user.setEmailVerified(true);
         authTokenRepository.save(token);
         userRepository.save(user);
-        return MessageResponse.of("Email verified successfully.");
+        return issueTokens(user);
     }
 
     @Transactional
@@ -155,6 +155,9 @@ public class AuthService {
             UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
             User user = userRepository.findById(principal.getId())
                     .orElseThrow(() -> new UnauthorizedException("Invalid login or password"));
+            if (!user.isEmailVerified()) {
+                throw new UnauthorizedException("Please verify your email address before signing in.");
+            }
             return issueTokens(user);
         } catch (BadCredentialsException ex) {
             throw new UnauthorizedException("Invalid login or password");

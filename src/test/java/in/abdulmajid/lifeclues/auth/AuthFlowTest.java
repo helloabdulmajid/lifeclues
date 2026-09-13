@@ -54,13 +54,14 @@ class AuthFlowTest extends AbstractIntegrationTest {
         assertThat(created.hasNonNull("id")).isTrue();
         assertThat(created.hasNonNull("createdAt")).isTrue();
 
-        String accessToken = loginAccess(email, "secret1234");
+        String accessToken = verifyAndGetAuth(email).get("accessToken").asText();
 
         mockMvc.perform(get("/api/me").header(HttpHeaders.AUTHORIZATION, bearer(accessToken)))
                 .andExpect(result -> {
                     JsonNode me = node(result);
                     assertThat(me.get("email").asText()).isEqualTo(email);
                     assertThat(me.get("username").asText()).isEqualTo(username);
+                    assertThat(me.get("emailVerified").asBoolean()).isTrue();
                 });
     }
 
@@ -71,6 +72,8 @@ class AuthFlowTest extends AbstractIntegrationTest {
 
         postJson("/api/auth/register",
                 Map.of("email", email, "username", username, "password", "secret1234"));
+
+        verifyAndGetAuth(email);
 
         MvcResult loginResult = postJson("/api/auth/login",
                 Map.of("login", username, "password", "secret1234"));
@@ -146,10 +149,21 @@ class AuthFlowTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void unverifiedLoginReturns401() throws Exception {
+        postJson("/api/auth/register",
+                Map.of("email", "kate@example.com", "username", "kate", "password", "secret1234"));
+
+        MvcResult login = postJson("/api/auth/login",
+                Map.of("login", "kate@example.com", "password", "secret1234"));
+        assertThat(login.getResponse().getStatus()).isEqualTo(401);
+        assertThat(node(login).get("message").asText()).contains("verify your email");
+    }
+
+    @Test
     void refreshRotatesTokensAndOldRefreshIsRejected() throws Exception {
         postJson("/api/auth/register",
                 Map.of("email", "dave@example.com", "username", "dave", "password", "secret1234"));
-        JsonNode auth = loginNode("dave@example.com", "secret1234");
+        JsonNode auth = verifyAndGetAuth("dave@example.com");
 
         String oldRefresh = auth.get("refreshToken").asText();
         MvcResult refreshResult = postJson("/api/auth/refresh", Map.of("refreshToken", oldRefresh));
@@ -167,7 +181,7 @@ class AuthFlowTest extends AbstractIntegrationTest {
     void logoutRevokesRefreshToken() throws Exception {
         postJson("/api/auth/register",
                 Map.of("email", "erin@example.com", "username", "erin", "password", "secret1234"));
-        JsonNode auth = loginNode("erin@example.com", "secret1234");
+        JsonNode auth = verifyAndGetAuth("erin@example.com");
         String refresh = auth.get("refreshToken").asText();
 
         MvcResult logout = postJson("/api/auth/logout", Map.of("refreshToken", refresh));
@@ -181,7 +195,7 @@ class AuthFlowTest extends AbstractIntegrationTest {
     void refreshTokensAreStoredHashedNotPlaintext() throws Exception {
         postJson("/api/auth/register",
                 Map.of("email", "frank@example.com", "username", "frank", "password", "secret1234"));
-        JsonNode auth = loginNode("frank@example.com", "secret1234");
+        JsonNode auth = verifyAndGetAuth("frank@example.com");
         String raw = auth.get("refreshToken").asText();
 
         assertThat(refreshTokenRepository.findAll())
@@ -200,8 +214,12 @@ class AuthFlowTest extends AbstractIntegrationTest {
         MvcResult verify = postJson("/api/auth/verify-email", Map.of("token", raw));
         assertThat(verify.getResponse().getStatus()).isEqualTo(200);
 
-        String accessToken = loginAccess("gina@example.com", "secret1234");
-        mockMvc.perform(get("/api/me").header(HttpHeaders.AUTHORIZATION, bearer(accessToken)))
+        // verify-email now signs the user in: it returns access + refresh tokens.
+        JsonNode auth = node(verify);
+        assertThat(auth.get("accessToken").asText()).isNotBlank();
+        assertThat(auth.get("refreshToken").asText()).isNotBlank();
+
+        mockMvc.perform(get("/api/me").header(HttpHeaders.AUTHORIZATION, bearer(auth.get("accessToken").asText())))
                 .andExpect(result -> assertThat(node(result).get("emailVerified").asBoolean()).isTrue());
 
         MvcResult reuse = postJson("/api/auth/verify-email", Map.of("token", raw));
@@ -219,6 +237,9 @@ class AuthFlowTest extends AbstractIntegrationTest {
         postJson("/api/auth/register",
                 Map.of("email", "henry@example.com", "username", "henry", "password", "secret1234"));
 
+        // Henry is a verified user who then forgot his password.
+        verifyAndGetAuth("henry@example.com");
+
         UUID userId = userRepository.findByEmail("henry@example.com").orElseThrow().getId();
         String raw = persistToken(userId, "RESET");
 
@@ -234,7 +255,8 @@ class AuthFlowTest extends AbstractIntegrationTest {
                 Map.of("login", "henry@example.com", "password", "newsecret99"));
         assertThat(newPassword.getResponse().getStatus()).isEqualTo(200);
 
-        assertThat(refreshTokenRepository.findAll()).isEmpty();
+        // reset revoked the verify-issued tokens; only the fresh login token remains.
+        assertThat(refreshTokenRepository.findAll()).hasSize(1);
     }
 
     @Test
@@ -290,12 +312,11 @@ class AuthFlowTest extends AbstractIntegrationTest {
                 MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8)));
     }
 
-    private String loginAccess(String login, String password) throws Exception {
-        return loginNode(login, password).get("accessToken").asText();
-    }
-
-    private JsonNode loginNode(String login, String password) throws Exception {
-        MvcResult result = postJson("/api/auth/login", Map.of("login", login, "password", password));
+    /** Registers the user's verification via the API and returns the resulting AuthResponse (tokens). */
+    private JsonNode verifyAndGetAuth(String email) throws Exception {
+        UUID userId = userRepository.findByEmail(email).orElseThrow().getId();
+        String raw = persistToken(userId, "VERIFY");
+        MvcResult result = postJson("/api/auth/verify-email", Map.of("token", raw));
         assertThat(result.getResponse().getStatus()).isEqualTo(200);
         return node(result);
     }
