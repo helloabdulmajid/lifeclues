@@ -4,6 +4,7 @@ import in.abdulmajid.lifeclues.auth.repository.AuthTokenRepository;
 import in.abdulmajid.lifeclues.auth.repository.RefreshTokenRepository;
 import in.abdulmajid.lifeclues.account.repository.UserRepository;
 import in.abdulmajid.lifeclues.memory.repository.MemoryRepository;
+import in.abdulmajid.lifeclues.memory.repository.TagRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -37,11 +38,15 @@ public abstract class AbstractIntegrationTest {
     @Autowired
     protected MemoryRepository memoryRepository;
 
+    @Autowired
+    protected TagRepository tagRepository;
+
     @BeforeEach
     void cleanDatabase() {
         authTokenRepository.deleteAllInBatch();
         refreshTokenRepository.deleteAllInBatch();
         memoryRepository.deleteAllInBatch();
+        tagRepository.deleteAllInBatch();
         userRepository.deleteAllInBatch();
     }
 }
