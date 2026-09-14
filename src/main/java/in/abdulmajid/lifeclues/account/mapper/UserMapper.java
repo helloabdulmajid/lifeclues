@@ -24,6 +24,7 @@ public class UserMapper {
                 user.getProfession(),
                 user.getRelationshipStatus(),
                 user.getLanguages(),
-                user.isEmailVerified());
+                user.isEmailVerified(),
+                user.getTimeFormat());
     }
 }

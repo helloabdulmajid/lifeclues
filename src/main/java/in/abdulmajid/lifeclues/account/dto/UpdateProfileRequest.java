@@ -34,5 +34,7 @@ public record UpdateProfileRequest(
         String relationshipStatus,
 
         @Size(max = 200, message = "Languages must be at most 200 characters")
-        String languages) {
+        String languages,
+
+        TimeFormat timeFormat) {
 }

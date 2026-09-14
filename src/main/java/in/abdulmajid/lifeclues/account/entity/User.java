@@ -2,6 +2,8 @@ package in.abdulmajid.lifeclues.account.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -9,6 +11,7 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import in.abdulmajid.lifeclues.account.dto.TimeFormat;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -70,6 +73,10 @@ public class User {
 
     @Column(length = 200)
     private String languages;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "time_format", length = 3)
+    private TimeFormat timeFormat = TimeFormat.H12;
 
     @Column(name = "email_verified", nullable = false)
     private boolean emailVerified = false;

@@ -8,6 +8,8 @@ import in.abdulmajid.lifeclues.account.dto.ChangePasswordRequest;
 import in.abdulmajid.lifeclues.security.CurrentUser;
 import in.abdulmajid.lifeclues.security.UserPrincipal;
 import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -41,5 +43,11 @@ public class AccountController {
                                           @Valid @RequestBody ChangePasswordRequest request) {
         accountService.changePassword(currentUser.getId(), request);
         return MessageResponse.of("Password changed successfully");
+    }
+
+    @DeleteMapping("/me")
+    public ResponseEntity<MessageResponse> deleteAccount(@CurrentUser UserPrincipal currentUser) {
+        accountService.deleteAccount(currentUser.getId());
+        return ResponseEntity.ok(MessageResponse.of("Account deleted successfully"));
     }
 }

@@ -95,6 +95,9 @@ public class AccountService {
         if (request.languages() != null) {
             user.setLanguages(normalize(request.languages()));
         }
+        if (request.timeFormat() != null) {
+            user.setTimeFormat(request.timeFormat());
+        }
 
         return userMapper.toResponse(userRepository.save(user));
     }
@@ -116,6 +119,12 @@ public class AccountService {
 
         user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
         userRepository.save(user);
+    }
+
+    @Transactional
+    public void deleteAccount(UUID userId) {
+        findById(userId);
+        userRepository.deleteById(userId);
     }
 
     private User findById(UUID userId) {
