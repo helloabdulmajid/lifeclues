@@ -12,6 +12,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
@@ -23,6 +25,8 @@ import lombok.Setter;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.UUID;
 
 /** A single memory in a user's memory book. */
@@ -71,6 +75,14 @@ public class Memory {
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
+
+    @ManyToMany
+    @JoinTable(
+            name = "memory_tags",
+            joinColumns = @JoinColumn(name = "memory_id"),
+            inverseJoinColumns = @JoinColumn(name = "tag_id")
+    )
+    private Set<Tag> tags = new LinkedHashSet<>();
 
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;

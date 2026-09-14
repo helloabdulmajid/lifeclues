@@ -13,6 +13,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -313,6 +314,151 @@ class MemoryFlowTest extends AbstractIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(result -> assertThat(result.getResponse().getStatus()).isEqualTo(401));
+    }
+
+    // ------------------------------------------------------------------
+    // Tags
+    // ------------------------------------------------------------------
+
+    @Test
+    void createMemoryWithTags() throws Exception {
+        String token = registerVerified("tag1@example.com", "tag1");
+
+        MvcResult result = send(HttpMethod.POST, "/api/memories",
+                Map.of("content", "A memory with tags", "eventDate", "2026-09-13",
+                        "status", "COMPLETED", "tags", List.of("Hyderabad", "College", "Rahul")),
+                token);
+        assertThat(result.getResponse().getStatus()).isEqualTo(201);
+        JsonNode body = node(result);
+        assertThat(body.get("tags").size()).isEqualTo(3);
+        assertThat(body.get("tags").get(0).get("name").asText()).isIn("Hyderabad", "College", "Rahul");
+    }
+
+    @Test
+    void draftCanHaveZeroTags() throws Exception {
+        String token = registerVerified("tag2@example.com", "tag2");
+
+        MvcResult result = send(HttpMethod.POST, "/api/memories",
+                Map.of("content", "Draft without tags", "eventDate", "2026-09-13"), token);
+        assertThat(result.getResponse().getStatus()).isEqualTo(201);
+        assertThat(node(result).get("tags").size()).isEqualTo(0);
+    }
+
+    @Test
+    void tagNamesAreCaseInsensitiveReused() throws Exception {
+        String token = registerVerified("tag3@example.com", "tag3");
+
+        send(HttpMethod.POST, "/api/memories",
+                Map.of("content", "First memory", "eventDate", "2026-09-13",
+                        "tags", List.of("Hyderabad")), token);
+
+        MvcResult result2 = send(HttpMethod.POST, "/api/memories",
+                Map.of("content", "Second memory", "eventDate", "2026-09-13",
+                        "tags", List.of("hyderabad")), token);
+        assertThat(result2.getResponse().getStatus()).isEqualTo(201);
+
+        MvcResult tags = send(HttpMethod.GET, "/api/tags", null, token);
+        assertThat(node(tags).size()).isEqualTo(1);
+    }
+
+    @Test
+    void tagNamesPreserveOriginalCasing() throws Exception {
+        String token = registerVerified("tag4@example.com", "tag4");
+
+        send(HttpMethod.POST, "/api/memories",
+                Map.of("content", "First", "eventDate", "2026-09-13",
+                        "tags", List.of("Hyderabad")), token);
+
+        MvcResult tags = send(HttpMethod.GET, "/api/tags", null, token);
+        assertThat(node(tags).get(0).get("name").asText()).isEqualTo("Hyderabad");
+    }
+
+    @Test
+    void tagsAreUserIsolated() throws Exception {
+        String tokenA = registerVerified("tag5a@example.com", "tag5a");
+        String tokenB = registerVerified("tag5b@example.com", "tag5b");
+
+        send(HttpMethod.POST, "/api/memories",
+                Map.of("content", "A's memory", "eventDate", "2026-09-13",
+                        "tags", List.of("Private")), tokenA);
+
+        MvcResult tagsB = send(HttpMethod.GET, "/api/tags", null, tokenB);
+        assertThat(node(tagsB).size()).isEqualTo(0);
+
+        MvcResult tagsA = send(HttpMethod.GET, "/api/tags", null, tokenA);
+        assertThat(node(tagsA).size()).isEqualTo(1);
+    }
+
+    @Test
+    void maximum50TagsEnforced() throws Exception {
+        String token = registerVerified("tag6@example.com", "tag6");
+        java.util.List<String> manyTags = new java.util.ArrayList<>();
+        for (int i = 0; i < 60; i++) {
+            manyTags.add("tag" + i);
+        }
+
+        MvcResult result = send(HttpMethod.POST, "/api/memories",
+                Map.of("content", "Many tags", "eventDate", "2026-09-13",
+                        "status", "COMPLETED", "tags", manyTags), token);
+        assertThat(result.getResponse().getStatus()).isEqualTo(201);
+        assertThat(node(result).get("tags").size()).isEqualTo(50);
+    }
+
+    @Test
+    void updateMemoryWithTags() throws Exception {
+        String token = registerVerified("tag7@example.com", "tag7");
+
+        MvcResult created = send(HttpMethod.POST, "/api/memories",
+                Map.of("content", "Update test", "eventDate", "2026-09-13",
+                        "tags", List.of("Original")), token);
+        String id = node(created).get("id").asText();
+
+        MvcResult updated = send(HttpMethod.PUT, "/api/memories/" + id,
+                Map.of("content", "Updated", "eventDate", "2026-09-13",
+                        "status", "COMPLETED", "tags", List.of("Updated1", "Updated2")), token);
+        assertThat(updated.getResponse().getStatus()).isEqualTo(200);
+        assertThat(node(updated).get("tags").size()).isEqualTo(2);
+    }
+
+    @Test
+    void emptyTagNamesAreIgnored() throws Exception {
+        String token = registerVerified("tag8@example.com", "tag8");
+
+        MvcResult result = send(HttpMethod.POST, "/api/memories",
+                Map.of("content", "Empty tag test", "eventDate", "2026-09-13",
+                        "status", "COMPLETED", "tags", List.of("Real", "", "  ")), token);
+        assertThat(result.getResponse().getStatus()).isEqualTo(201);
+        assertThat(node(result).get("tags").size()).isEqualTo(1);
+    }
+
+    @Test
+    void tagNamesOver50CharsAreIgnored() throws Exception {
+        String token = registerVerified("tag9@example.com", "tag9");
+        String longName = "a".repeat(51);
+
+        MvcResult result = send(HttpMethod.POST, "/api/memories",
+                Map.of("content", "Long tag test", "eventDate", "2026-09-13",
+                        "status", "COMPLETED", "tags", List.of(longName, "short")), token);
+        assertThat(result.getResponse().getStatus()).isEqualTo(201);
+        assertThat(node(result).get("tags").size()).isEqualTo(1);
+    }
+
+    @Test
+    void listTagsReturnsOnlyAuthenticatedUsersTags() throws Exception {
+        String tokenA = registerVerified("tag10a@example.com", "tag10a");
+        String tokenB = registerVerified("tag10b@example.com", "tag10b");
+
+        send(HttpMethod.POST, "/api/memories",
+                Map.of("content", "Memory A", "eventDate", "2026-09-13",
+                        "tags", List.of("Alpha", "Beta")), tokenA);
+        send(HttpMethod.POST, "/api/memories",
+                Map.of("content", "Memory B", "eventDate", "2026-09-13",
+                        "tags", List.of("Gamma")), tokenB);
+
+        JsonNode tagsA = node(send(HttpMethod.GET, "/api/tags", null, tokenA));
+        assertThat(tagsA.size()).isEqualTo(2);
+        JsonNode tagsB = node(send(HttpMethod.GET, "/api/tags", null, tokenB));
+        assertThat(tagsB.size()).isEqualTo(1);
     }
 
     // ------------------------------------------------------------------

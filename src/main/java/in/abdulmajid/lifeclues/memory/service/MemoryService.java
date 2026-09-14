@@ -9,6 +9,7 @@ import in.abdulmajid.lifeclues.memory.dto.MemoryResponse;
 import in.abdulmajid.lifeclues.memory.dto.MemoryStatus;
 import in.abdulmajid.lifeclues.memory.dto.StatusChangeRequest;
 import in.abdulmajid.lifeclues.memory.entity.Memory;
+import in.abdulmajid.lifeclues.memory.entity.Tag;
 import in.abdulmajid.lifeclues.memory.mapper.MemoryMapper;
 import in.abdulmajid.lifeclues.memory.repository.MemoryRepository;
 import org.slf4j.Logger;
@@ -22,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -33,12 +35,14 @@ public class MemoryService {
     private final MemoryRepository memoryRepository;
     private final UserRepository userRepository;
     private final MemoryMapper memoryMapper;
+    private final TagService tagService;
 
     public MemoryService(MemoryRepository memoryRepository, UserRepository userRepository,
-                         MemoryMapper memoryMapper) {
+                         MemoryMapper memoryMapper, TagService tagService) {
         this.memoryRepository = memoryRepository;
         this.userRepository = userRepository;
         this.memoryMapper = memoryMapper;
+        this.tagService = tagService;
     }
 
     @Transactional
@@ -53,6 +57,9 @@ public class MemoryService {
         memory.setEventDate(request.eventDate());
         memory.setEventTime(request.eventTime());
         memory.setStatus(status);
+
+        Set<Tag> tags = tagService.resolveTags(userId, request.tags());
+        memory.setTags(tags);
 
         return memoryMapper.toResponse(memoryRepository.save(memory));
     }
@@ -91,6 +98,11 @@ public class MemoryService {
         memory.setContent(request.content().trim());
         memory.setEventDate(request.eventDate());
         memory.setEventTime(request.eventTime());
+
+        if (request.tags() != null) {
+            Set<Tag> tags = tagService.resolveTags(userId, request.tags());
+            memory.setTags(tags);
+        }
 
         return memoryMapper.toResponse(memoryRepository.save(memory));
     }

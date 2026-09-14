@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 
 public record MemoryRequest(
         @Size(max = 120, message = "Title must be at most 120 characters")
@@ -20,5 +21,8 @@ public record MemoryRequest(
 
         LocalTime eventTime,
 
-        MemoryStatus status) {
+        MemoryStatus status,
+
+        @Size(max = 50, message = "Maximum 50 tags per memory")
+        List<String> tags) {
 }
