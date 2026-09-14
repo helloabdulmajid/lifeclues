@@ -20,5 +20,6 @@ public record UserResponse(
         String profession,
         String relationshipStatus,
         String languages,
-        boolean emailVerified) {
+        boolean emailVerified,
+        TimeFormat timeFormat) {
 }
