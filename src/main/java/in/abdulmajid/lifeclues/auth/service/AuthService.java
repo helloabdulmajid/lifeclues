@@ -95,7 +95,7 @@ public class AuthService {
     @Transactional
     public UserResponse register(RegisterRequest request, HttpServletRequest httpRequest) {
         UserResponse response = accountService.register(request);
-        sendVerificationLink(response.id(), response.email(), httpRequest);
+        sendWelcomeLink(response.id(), response.email(), httpRequest);
         return response;
     }
 
@@ -186,14 +186,22 @@ public class AuthService {
         return MessageResponse.of("Logged out successfully");
     }
 
+    private void sendWelcomeLink(UUID userId, String email, HttpServletRequest httpRequest) {
+        createAndSendToken(userId, email, TYPE_VERIFY, verifyExpiryMinutes, httpRequest,
+                (user, raw) -> mailService.sendWelcome(httpRequest, user.getEmail(),
+                        user.getDisplayName(), raw, verifyExpiryMinutes));
+    }
+
     private void sendVerificationLink(UUID userId, String email, HttpServletRequest httpRequest) {
         createAndSendToken(userId, email, TYPE_VERIFY, verifyExpiryMinutes, httpRequest,
-                (user, raw) -> mailService.sendVerificationLink(httpRequest, user.getEmail(), raw));
+                (user, raw) -> mailService.sendVerificationLink(httpRequest, user.getEmail(),
+                        raw, verifyExpiryMinutes));
     }
 
     private void sendResetLink(UUID userId, String email, HttpServletRequest httpRequest) {
         createAndSendToken(userId, email, TYPE_RESET, resetExpiryMinutes, httpRequest,
-                (user, raw) -> mailService.sendResetLink(httpRequest, user.getEmail(), raw));
+                (user, raw) -> mailService.sendResetLink(httpRequest, user.getEmail(),
+                        raw, resetExpiryMinutes));
     }
 
     @FunctionalInterface
