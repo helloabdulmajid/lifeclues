@@ -49,7 +49,9 @@ public class TagService {
     @Transactional
     public Set<Tag> resolveTags(UUID userId, List<String> tagNames) {
         if (tagNames == null || tagNames.isEmpty()) {
-            return Set.of();
+            // Mutable on purpose: Hibernate merge may clear() the collection, and
+            // immutable Set.of() would blow up with UnsupportedOperationException.
+            return new LinkedHashSet<>();
         }
 
         User user = userRepository.getReferenceById(userId);
@@ -63,7 +65,7 @@ public class TagService {
 
         Set<Tag> tags = new LinkedHashSet<>();
         for (String name : uniqueNames) {
-            Tag tag = tagRepository.findByUserIdAndName(userId, name)
+            Tag tag = tagRepository.findByUserIdAndNameIgnoreCase(userId, name)
                     .orElseGet(() -> {
                         Tag newTag = new Tag();
                         newTag.setUser(user);

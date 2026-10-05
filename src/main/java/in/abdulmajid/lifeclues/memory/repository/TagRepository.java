@@ -9,8 +9,8 @@ import java.util.UUID;
 
 public interface TagRepository extends JpaRepository<Tag, UUID> {
 
-    /** Find a tag by exact name for a specific user. */
-    Optional<Tag> findByUserIdAndName(UUID userId, String name);
+    /** Find a tag by name for a specific user, ignoring case. */
+    Optional<Tag> findByUserIdAndNameIgnoreCase(UUID userId, String name);
 
     /** Return all tags belonging to a user, sorted by name. */
     List<Tag> findAllByUserIdOrderByName(UUID userId);

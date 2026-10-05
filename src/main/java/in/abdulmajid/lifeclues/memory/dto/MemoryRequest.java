@@ -23,6 +23,17 @@ public record MemoryRequest(
 
         MemoryStatus status,
 
+        Mood mood,
+
         @Size(max = 50, message = "Maximum 50 tags per memory")
-        List<String> tags) {
+        List<String> tags,
+
+        @Size(max = 50, message = "Maximum 50 categories per memory")
+        List<String> categories,
+
+        @Size(max = 50, message = "Maximum 50 people per memory")
+        List<String> people,
+
+        @Size(max = 50, message = "Maximum 50 places per memory")
+        List<String> places) {
 }

@@ -378,7 +378,7 @@ Or set the environment variables and run directly — the `.env` loader in `Life
 
 - Docker packaging for the backend
 - Rate limiting on auth endpoints
-- Full-text search with PostgreSQL's `tsvector`/`tsquery`
+- Upgrade search to PostgreSQL full-text (`tsvector`/`tsquery`) with stemming, once substring matching outgrows the current usage
 - Memory sharing between users
 - Image attachments for memories
 - Redis for caching (only if it's actually needed)

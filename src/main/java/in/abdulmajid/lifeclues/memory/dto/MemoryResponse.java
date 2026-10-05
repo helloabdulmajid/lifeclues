@@ -13,8 +13,14 @@ public record MemoryResponse(
         LocalDate eventDate,
         LocalTime eventTime,
         MemoryStatus status,
+        Mood mood,
         List<TagResponse> tags,
+        List<CategoryResponse> categories,
+        List<PersonResponse> people,
+        List<PlaceResponse> places,
         Instant createdAt,
         Instant updatedAt,
-        Instant deletedAt) {
+        Instant deletedAt,
+        boolean favorite,
+        boolean pinned) {
 }

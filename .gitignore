@@ -36,3 +36,8 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### AI memory files (local to this working copy) ###
+AGENTS.md
+PROJECT_CONTEXT.md
+DEV_LOG.md

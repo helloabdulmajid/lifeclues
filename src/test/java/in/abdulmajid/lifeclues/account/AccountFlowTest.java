@@ -102,6 +102,13 @@ class AccountFlowTest extends AbstractIntegrationTest {
 
     private String registerAndLogin(String email, String username, String password) throws Exception {
         postJson("/api/auth/register", Map.of("email", email, "username", username, "password", password));
+        // The app only lets verified users in; the other integration suites mark
+        // the freshly-registered user verified in the DB (no mailer in tests),
+        // and this suite had a similar blind spot before login.
+        userRepository.findByEmail(email).ifPresent(user -> {
+            user.setEmailVerified(true);
+            userRepository.save(user);
+        });
         return loginAccess(email, password);
     }
 

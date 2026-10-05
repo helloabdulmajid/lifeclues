@@ -34,7 +34,7 @@ public class LifecluesApplication {
 			System.exit(1);
 		}
 		SpringApplication.run(LifecluesApplication.class, args);
-		System.out.println("Start Application ....");
+		System.out.println("Hey Buddy Your Jouranal Shipped ..Means ..Start Application ....");
 	}
 
 	/**

@@ -1,14 +1,17 @@
 package in.abdulmajid.lifeclues.memory.controller;
 
 import in.abdulmajid.lifeclues.common.dto.MessageResponse;
+import in.abdulmajid.lifeclues.memory.dto.MemoryFlagsRequest;
 import in.abdulmajid.lifeclues.memory.dto.MemoryPageResponse;
 import in.abdulmajid.lifeclues.memory.dto.MemoryRequest;
 import in.abdulmajid.lifeclues.memory.dto.MemoryResponse;
+import in.abdulmajid.lifeclues.memory.dto.Mood;
 import in.abdulmajid.lifeclues.memory.dto.StatusChangeRequest;
 import in.abdulmajid.lifeclues.memory.service.MemoryService;
 import in.abdulmajid.lifeclues.security.CurrentUser;
 import in.abdulmajid.lifeclues.security.UserPrincipal;
 import jakarta.validation.Valid;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,6 +25,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -37,8 +42,19 @@ public class MemoryController {
     @GetMapping
     public MemoryPageResponse list(@CurrentUser UserPrincipal currentUser,
                                    @RequestParam(defaultValue = "50") int limit,
-                                   @RequestParam(defaultValue = "0") int offset) {
-        return memoryService.list(currentUser.getId(), limit, offset);
+                                   @RequestParam(defaultValue = "0") int offset,
+                                   @RequestParam(defaultValue = "eventDate") String sort,
+                                   @RequestParam(defaultValue = "desc") String order,
+                                   @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+                                   @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+                                   @RequestParam(defaultValue = "false") boolean favorite,
+                                   @RequestParam(required = false) Mood mood,
+                                   @RequestParam(required = false) List<String> tag,
+                                   @RequestParam(required = false) List<String> category,
+                                   @RequestParam(required = false) List<String> people,
+                                   @RequestParam(required = false) List<String> place) {
+        return memoryService.list(currentUser.getId(), limit, offset, sort, order, from, to, favorite,
+                mood, tag, category, people, place);
     }
 
     @GetMapping("/trash")
@@ -46,6 +62,14 @@ public class MemoryController {
                                           @RequestParam(defaultValue = "50") int limit,
                                           @RequestParam(defaultValue = "0") int offset) {
         return memoryService.listTrashed(currentUser.getId(), limit, offset);
+    }
+
+    @GetMapping("/search")
+    public MemoryPageResponse search(@CurrentUser UserPrincipal currentUser,
+                                     @RequestParam(required = false) String q,
+                                     @RequestParam(defaultValue = "50") int limit,
+                                     @RequestParam(defaultValue = "0") int offset) {
+        return memoryService.search(currentUser.getId(), q, limit, offset);
     }
 
     @PostMapping
@@ -72,6 +96,13 @@ public class MemoryController {
                                        @PathVariable UUID id,
                                        @Valid @RequestBody StatusChangeRequest request) {
         return memoryService.changeStatus(currentUser.getId(), id, request);
+    }
+
+    @PatchMapping("/{id}/flags")
+    public MemoryResponse updateFlags(@CurrentUser UserPrincipal currentUser,
+                                      @PathVariable UUID id,
+                                      @Valid @RequestBody MemoryFlagsRequest request) {
+        return memoryService.updateFlags(currentUser.getId(), id, request);
     }
 
     @DeleteMapping("/{id}")

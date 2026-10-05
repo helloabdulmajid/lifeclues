@@ -2,6 +2,7 @@ package in.abdulmajid.lifeclues.memory.entity;
 
 import in.abdulmajid.lifeclues.account.entity.User;
 import in.abdulmajid.lifeclues.memory.dto.MemoryStatus;
+import in.abdulmajid.lifeclues.memory.dto.Mood;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -34,6 +35,7 @@ import java.util.UUID;
 @Table(name = "memories", indexes = {
         @Index(name = "idx_memories_user_event", columnList = "user_id, event_date DESC, created_at DESC"),
         @Index(name = "idx_memories_user_status", columnList = "user_id, status"),
+        @Index(name = "idx_memories_user_pinned", columnList = "user_id, pinned"),
         @Index(name = "idx_memories_sweep", columnList = "deleted_at")
 })
 @Getter
@@ -70,8 +72,28 @@ public class Memory {
     @Column(name = "trashed_from", length = 20)
     private MemoryStatus trashedFrom;
 
+    /** How the author felt when writing this memory. Optional. */
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    private Mood mood;
+
     @Column(name = "deleted_at")
     private Instant deletedAt;
+
+    /** When this memory was pinned, or null when not pinned. Drives pin order. */
+    @Column(name = "pinned_at")
+    private Instant pinnedAt;
+
+    /**
+     * Boxed so `ddl-auto=update` can add the column to existing rows without a
+     * NOT NULL default (Hibernate would otherwise fail the ALTER on populated
+     * tables). Null reads as false — normalize with Boolean.TRUE.equals().
+     */
+    @Column
+    private Boolean favorite = false;
+
+    @Column
+    private Boolean pinned = false;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -83,6 +105,30 @@ public class Memory {
             inverseJoinColumns = @JoinColumn(name = "tag_id")
     )
     private Set<Tag> tags = new LinkedHashSet<>();
+
+    @ManyToMany
+    @JoinTable(
+            name = "memory_categories",
+            joinColumns = @JoinColumn(name = "memory_id"),
+            inverseJoinColumns = @JoinColumn(name = "category_id")
+    )
+    private Set<Category> categories = new LinkedHashSet<>();
+
+    @ManyToMany
+    @JoinTable(
+            name = "memory_people",
+            joinColumns = @JoinColumn(name = "memory_id"),
+            inverseJoinColumns = @JoinColumn(name = "person_id")
+    )
+    private Set<Person> people = new LinkedHashSet<>();
+
+    @ManyToMany
+    @JoinTable(
+            name = "memory_places",
+            joinColumns = @JoinColumn(name = "memory_id"),
+            inverseJoinColumns = @JoinColumn(name = "place_id")
+    )
+    private Set<Place> places = new LinkedHashSet<>();
 
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;

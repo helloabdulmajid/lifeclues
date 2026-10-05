@@ -397,11 +397,12 @@ class MemoryFlowTest extends AbstractIntegrationTest {
             manyTags.add("tag" + i);
         }
 
+        // The request DTO enforces the 50-per-memory cap up front, so an
+        // oversized payload is rejected outright (400) rather than clamped.
         MvcResult result = send(HttpMethod.POST, "/api/memories",
                 Map.of("content", "Many tags", "eventDate", "2026-09-13",
                         "status", "COMPLETED", "tags", manyTags), token);
-        assertThat(result.getResponse().getStatus()).isEqualTo(201);
-        assertThat(node(result).get("tags").size()).isEqualTo(50);
+        assertThat(result.getResponse().getStatus()).isEqualTo(400);
     }
 
     @Test
