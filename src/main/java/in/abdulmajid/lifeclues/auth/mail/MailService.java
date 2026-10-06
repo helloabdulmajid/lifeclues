@@ -5,6 +5,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
@@ -101,6 +102,57 @@ public class MailService {
 
     private boolean isConfigured() {
         return smtpUsername != null && !smtpUsername.isBlank();
+    }
+
+    /** Outcome of a {@link #deliver(OutboundMail)} attempt — reported honestly to the caller. */
+    public enum Outcome { SENT, LOGGED, FAILED }
+
+    /**
+     * A pre-built outbound email with an optional in-memory attachment
+     * (e.g. a feedback screenshot — never persisted anywhere).
+     */
+    public record OutboundMail(String to, String subject, String html,
+                               String attachmentName, String attachmentContentType,
+                               byte[] attachmentBytes) {
+
+        public OutboundMail(String to, String subject, String html) {
+            this(to, subject, html, null, null, null);
+        }
+    }
+
+    /** Result record: SENT only on a real SMTP success, LOGGED when SMTP is off, FAILED on a real error. */
+    public record SendAttempt(Outcome outcome, String errorMessage) {}
+
+    /**
+     * Best-effort delivery for internal notifications. Never throws, so a saved
+     * record can never be rolled back by an email problem. Distinguishes
+     * LOGGED (no SMTP configured — development fallback) from FAILED (a real
+     * send was attempted and errored) so callers never claim delivery falsely.
+     */
+    public SendAttempt deliver(OutboundMail mail) {
+        if (!isConfigured()) {
+            log.info("SMTP not configured; email only logged: '{}'", mail.subject());
+            return new SendAttempt(Outcome.LOGGED, null);
+        }
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setFrom(from.isBlank() ? smtpUsername : from);
+            helper.setTo(mail.to());
+            helper.setSubject(mail.subject());
+            helper.setText(mail.html(), true);
+            if (mail.attachmentBytes() != null && mail.attachmentBytes().length > 0) {
+                helper.addAttachment(mail.attachmentName(),
+                        new ByteArrayResource(mail.attachmentBytes()),
+                        mail.attachmentContentType());
+            }
+            mailSender.send(message);
+            log.info("Sent '{}'", mail.subject());
+            return new SendAttempt(Outcome.SENT, null);
+        } catch (Exception ex) {
+            log.warn("Failed to send '{}': {}", mail.subject(), ex.getMessage());
+            return new SendAttempt(Outcome.FAILED, ex.getMessage());
+        }
     }
 
     /**

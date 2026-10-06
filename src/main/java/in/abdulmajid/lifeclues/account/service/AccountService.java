@@ -10,6 +10,7 @@ import in.abdulmajid.lifeclues.account.repository.UserRepository;
 import in.abdulmajid.lifeclues.common.exception.BadRequestException;
 import in.abdulmajid.lifeclues.common.exception.ConflictException;
 import in.abdulmajid.lifeclues.common.exception.ResourceNotFoundException;
+import in.abdulmajid.lifeclues.feedback.service.FeedbackService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,11 +24,14 @@ public class AccountService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
+    private final FeedbackService feedbackService;
 
-    public AccountService(UserRepository userRepository, PasswordEncoder passwordEncoder, UserMapper userMapper) {
+    public AccountService(UserRepository userRepository, PasswordEncoder passwordEncoder, UserMapper userMapper,
+                          FeedbackService feedbackService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.userMapper = userMapper;
+        this.feedbackService = feedbackService;
     }
 
     @Transactional
@@ -123,7 +127,10 @@ public class AccountService {
 
     @Transactional
     public void deleteAccount(UUID userId) {
-        findById(userId);
+        User user = findById(userId);
+        // Keep anonymous feedback for product statistics: drop the account link
+        // and any contact email that directly identifies this account.
+        feedbackService.anonymizeForUser(userId, user.getEmail());
         userRepository.deleteById(userId);
     }
 
